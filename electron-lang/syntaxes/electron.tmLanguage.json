@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Electron",
+  "scopeName": "source.electron",
+  
+  "patterns": [
+    {
+      "name": "comment.line.semicolon.electron",
+      "match": ";.*$"
+    },
+    {
+      "name": "keyword.electron",
+      "match": "\\b(?i)(ADD|SUB|MUL|DIV|MOV|JMP|NOP)\\b"
+    },
+    {
+      "name": "constant.numeric.electron",
+      "match": "\\b\\d+\\b"
+    },
+    {
+      "name": "invalid.illegal.electron",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+    }
+  ]
+}

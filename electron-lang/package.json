@@ -1,0 +1,30 @@
+{
+    "name": "electron-language",
+    "displayName": "Electron Language",
+    "description": "Syntax highlighting for the Electron programming language",
+    "version": "0.0.1",
+    "engines": {
+      "vscode": "^1.50.0"
+    },
+    "categories": [
+      "Programming Languages"
+    ],
+    "contributes": {
+      "languages": [
+        {
+          "id": "electron",
+          "aliases": ["Electron", "electron"],
+          "extensions": [".elt"],
+          "configuration": "./language-configuration.json"
+        }
+      ],
+      "grammars": [
+        {
+          "language": "electron",
+          "scopeName": "source.electron",
+          "path": "./syntaxes/electron.tmLanguage.json"
+        }
+      ]
+    }
+  }
+  
