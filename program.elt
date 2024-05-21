@@ -1,2 +1,2 @@
 ADD R1 R2
-ADD 10 10
+SADDC 3 0 ; Save add with carry

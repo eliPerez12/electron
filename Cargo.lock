@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "buc"
+name = "electron"
 version = "0.1.0"

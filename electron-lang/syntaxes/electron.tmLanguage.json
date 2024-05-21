@@ -10,7 +10,7 @@
     },
     {
       "name": "keyword.electron",
-      "match": "\\b[USX]?(ADD|SUB)\\b"
+      "match": "\\b[USX]?(ADD|ADDC)\\b"
     },
     {
       "name": "keyword.electron",
