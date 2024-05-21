@@ -1,3 +1,3 @@
-ADD 0 2 
-SUB 12 1
-AADD
+SADD R1 R2 ; A = A + B
+UADD R1 R2 ; A = ACCU + B
+ADD R1 R2  ; A + B

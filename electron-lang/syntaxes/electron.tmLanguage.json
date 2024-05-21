@@ -10,7 +10,19 @@
     },
     {
       "name": "keyword.electron",
-      "match": "\\b(?i)(ADD|SUB|MUL|DIV|MOV|JMP|NOP)\\b"
+      "match": "\\b[USX]?(ADD|SUB)\\b"
+    },
+    {
+      "name": "keyword.electron",
+      "match": "\\b(NOOP|NOP|IMM|LOAD|STORE|POP|PUSH|OUT|IN)\\b"
+    },
+    {
+      "name": "variable.electron",
+      "match": "[RrLl%#$]{1}[0-9]+"
+    },
+    {
+      "name": "keyword.control.electron",
+      "match": "\\b[AS]?(JMP|BIE|BIG|BIL|BNE)\\b"
     },
     {
       "name": "constant.numeric.electron",
@@ -19,6 +31,10 @@
     {
       "name": "invalid.illegal.electron",
       "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+    },
+    {
+      "name": "invalid.illegal.electron",
+      "match": "^\\s*(\\S+\\s+){3}\\S+.*$"
     }
   ]
 }
