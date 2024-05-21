@@ -8,39 +8,76 @@ enum Operation {
     OUT,
 }
 
+struct CompileMessage {
+    line: usize,
+    message: String,
+}
+
 impl Operation {
     // What operands this intruction requires (A, B)
-    pub fn needed_oprands(&self, args: &OperationArgs) -> (bool, bool) {
+    pub fn needed_oprands(&self, args: &OperationArgs) -> (Option<Oprand>, Option<Oprand>) {
         match self {
-            Operation::NOOP => (false, false),
+            Operation::NOOP => (None, None),
             Operation::ADD | Operation::SUB => match args {
-                OperationArgs::None => (true, true), // No prefix
-                OperationArgs::S => (true, true),    // S
-                OperationArgs::U => (true, true),    // U
-                OperationArgs::X => (false, true),   // X
+                OperationArgs::None => (Some(Oprand::Register(0)), Some(Oprand::Register(0))), // No prefix
+                OperationArgs::S => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),    // S
+                OperationArgs::U => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),    // U
+                OperationArgs::X => (None, Some(Oprand::Register(0))),                         // X
             },
-            Operation::OUT | Operation::IMM => (true, true),
-        }   
+            Operation::IMM => (Some(Oprand::Register(0)), Some(Oprand::Immediate(0))),
+            Operation::OUT => (Some(Oprand::Port(0)), Some(Oprand::Register(0))),
+        }
+    }
+
+    fn get_operation_name(&self, args: &OperationArgs) -> String {
+        match self {
+            Operation::NOOP => "NOOP".to_string(),
+            Operation::IMM => "IMM".to_string(),
+            Operation::ADD => "ADD".to_string(),
+            Operation::SUB => "SUB".to_string(),
+            Operation::OUT => "OUT".to_string(),
+        }
+    }
+
+    fn is_alu_operation(&self) -> bool {
+        matches!(self, Operation::ADD | Operation::SUB)
     }
 }
 
 #[derive(Debug)]
 enum OperationArgs {
-    None,   // No prefix
-    S,      // S
-    U,      // U
-    X,      // X
+    None, // No prefix
+    S,    // S
+    U,    // U
+    X,    // X
 }
-
 
 #[derive(Debug)]
 struct Instruction {
     operation: Operation,
     operation_args: OperationArgs,
-    a: u8,
-    b: u8,
+    a: Oprand,
+    b: Oprand,
 }
 
+#[derive(Debug)]
+enum Oprand {
+    Register(u8),
+    MemoryAddress(u8),
+    Immediate(u8),
+    Port(u8),
+}
+
+impl Oprand {
+    fn get_oprand_name(&self) -> String {
+        match self {
+            Oprand::Register(_) => "Register".to_string(),
+            Oprand::MemoryAddress(_) => "MemoryAddress".to_string(),
+            Oprand::Immediate(_) => "Immediate".to_string(),
+            Oprand::Port(_) => "Port".to_string(),
+        }
+    }
+}
 
 fn operation_from_str(line: &Vec<String>) -> Result<(Operation, OperationArgs), String> {
     if line.is_empty() {
@@ -50,18 +87,23 @@ fn operation_from_str(line: &Vec<String>) -> Result<(Operation, OperationArgs), 
     if let Ok(operation) = match_operation_name(&string) {
         Ok((operation, OperationArgs::None))
     } else if let Ok(operation) = match_operation_name(string.get(1..).unwrap()) {
-        Ok((operation, operation_args_from_str(string).unwrap()))
+        if operation.is_alu_operation() {
+            Ok((operation, operation_args_from_str(string).unwrap()))
+        } else {
+            Err(format!("\"{:?}\" does not take ALU arguments", operation))
+        }
     } else {
         Err(format!("\"{string}\" is not a valid instruction"))
     }
 }
 
-fn operation_args_from_str(string: String) -> Result<OperationArgs, ()>{
-    match string.get(0..1).unwrap() { // first character of word
+fn operation_args_from_str(string: String) -> Result<OperationArgs, ()> {
+    match string.get(0..1).unwrap() {
+        // first character of word
         "U" => Ok(OperationArgs::U),
         "S" => Ok(OperationArgs::S),
         "X" => Ok(OperationArgs::X),
-        _ => Err(())
+        _ => Err(()),
     }
 }
 
@@ -72,42 +114,50 @@ fn match_operation_name(str: &str) -> Result<Operation, ()> {
         "SUB" => Ok(Operation::SUB),
         "NOOP" | "NOP" => Ok(Operation::NOOP),
         "OUT" => Ok(Operation::OUT),
-        _ => Err(())
+        _ => Err(()),
     }
-}   
+}
+
+fn parse_oprand(oprand: &str) -> Result<Oprand, String> {
+    let prefix = oprand.get(0..1);
+    if let Ok(a) = oprand.parse() {
+        Ok(Oprand::Immediate(a))
+    } else if prefix.unwrap() == "R" {
+        Ok(Oprand::Register(oprand.get(1..).unwrap().parse().unwrap()))
+    } else if prefix.unwrap() == "#" {
+        Ok(Oprand::MemoryAddress(
+            oprand.get(1..).unwrap().parse().unwrap(),
+        ))
+    } else if prefix.unwrap() == "%" {
+        Ok(Oprand::Port(oprand.get(1..).unwrap().parse().unwrap()))
+    } else {
+        return Err(format!("\"{oprand}\" is not a valid oprand"));
+    }
+}
 
 fn parse_line(line: &str) -> Result<Instruction, String> {
-    let mut line = line.to_string().to_ascii_uppercase()
-    .replace(['R', '%', '#', '$'], "");
+    let mut line = line.to_string().to_ascii_uppercase();
     let comment = line.find(';');
-    if let Some(comment) = comment{
+    if let Some(comment) = comment {
         line.truncate(comment);
     }
-    let mut words: Vec<String> = line.split_whitespace().map(|s|s.to_owned()).collect();
+    let mut words: Vec<String> = line.split_whitespace().map(|s| s.to_owned()).collect();
     let (operation, operation_args) = operation_from_str(&words)?;
-    let (a, b) = {(
-        if operation.needed_oprands(&operation_args).0 {
-            words.remove(0);
-            let oprand = words.first().unwrap();
-            if let Ok(a) = oprand.parse() {
-                a
+    let (a, b) = {
+        (
+            if operation.needed_oprands(&operation_args).0.is_some() {
+                words.remove(0);
+                parse_oprand(words.first().unwrap()).unwrap()
             } else {
-                return Err(format!("\"{oprand}\" is not a valid oprand"))
-            }
-        } else {
-            0
-        },
-        if operation.needed_oprands(&operation_args).1 {
-            words.remove(0);
-            let oprand = words.first().unwrap();
-            if let Ok(a) = oprand.parse() {
-                a
+                Oprand::Immediate(0)
+            },
+            if operation.needed_oprands(&operation_args).1.is_some() {
+                words.remove(0);
+                parse_oprand(words.first().unwrap()).unwrap()
             } else {
-                return Err(format!("\"{oprand} is not a valid oprand\""))
-            }
-        } else {
-            0
-        })
+                Oprand::Immediate(0)
+            },
+        )
     };
     Ok(Instruction {
         operation,
@@ -117,36 +167,80 @@ fn parse_line(line: &str) -> Result<Instruction, String> {
     })
 }
 
+fn add_warnings(instructions: &Vec<Instruction>, warnings: &mut Vec<CompileMessage>) {
+    for (line_num, instruction) in instructions.iter().enumerate() {
+        let needed_oprands = instruction
+            .operation
+            .needed_oprands(&instruction.operation_args);
+        if let Some(a) = needed_oprands.0 {
+            if std::mem::discriminant(&a) != std::mem::discriminant(&instruction.a) {
+                warnings.push(CompileMessage {
+                    line: line_num,
+                    message: format!(
+                        "{:?} takes a {} for oprand A, not a {}",
+                        instruction.operation,
+                        a.get_oprand_name(),
+                        &instruction.a.get_oprand_name()
+                    ),
+                })
+            }
+        }
+        if let Some(b) = needed_oprands.1 {
+            if std::mem::discriminant(&b) != std::mem::discriminant(&instruction.b) {
+                warnings.push(CompileMessage {
+                    line: line_num,
+                    message: format!(
+                        "{:?} takes a {} for oprand B, not a {}",
+                        instruction.operation,
+                        b.get_oprand_name(),
+                        &instruction.b.get_oprand_name()
+                    ),
+                })
+            }
+        }
+    }
+    if instructions.len() > 32 {
+        warnings.push(CompileMessage {
+            line: 32,
+            message: format!("Too many lines of instruction ({}/32)", instructions.len()),
+        })
+    }
+}
+
 fn main() {
     let file_name = "program.elt";
     let mut file = std::fs::File::open(file_name).unwrap();
     let mut buffer = String::new();
     std::io::Read::read_to_string(&mut file, &mut buffer).unwrap();
-    let mut errors: Vec<String> = vec![];
-    let mut warnings: Vec<String> = vec![];
+    let mut errors: Vec<CompileMessage> = vec![];
+    let mut warnings: Vec<CompileMessage> = vec![];
     let mut instructions = vec![];
-    for line in buffer.lines() {
+    for (line_num, line) in buffer.lines().enumerate() {
         if let Ok(instruction) = parse_line(line) {
             instructions.push(instruction)
-        } else if let Err(error) = parse_line(line){
-            errors.push(error)
+        } else if let Err(error) = parse_line(line) {
+            errors.push(CompileMessage {
+                line: line_num,
+                message: error,
+            })
         }
     }
-    if instructions.len() > 32 {
-        warnings.push(format!("Too many lines of instruction ({}/32)", instructions.len()))
-    }
+    add_warnings(&instructions, &mut warnings);
     for warning in warnings {
-        println!("Warning: {warning}.");
+        println!("Warning on line {}: {}.", warning.line, warning.message);
     }
     if errors.is_empty() {
         for (line_num, instruction) in instructions.iter().enumerate() {
-            println!("{line_num}:  {:?} {:?} {} {}", instruction.operation, instruction.operation_args, instruction.a, instruction.b);
+            println!(
+                "{line_num}:  {:?} {:?} {:?} {:?}",
+                instruction.operation, instruction.operation_args, instruction.a, instruction.b
+            );
         }
         println!("Successfully validated program.");
     } else {
         println!("Failed to compile {file_name}.");
         for error in errors {
-            println!("Error: {error}.");
+            println!("Error on line {}: {}.", error.line, error.message);
         }
     }
 }

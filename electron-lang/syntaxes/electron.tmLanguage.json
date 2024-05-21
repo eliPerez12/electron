@@ -18,7 +18,7 @@
     },
     {
       "name": "variable.electron",
-      "match": "[RrLl%#$]{1}[0-9]+"
+      "match": "[RrLl%#]{1}[0-9]+"
     },
     {
       "name": "keyword.control.electron",
