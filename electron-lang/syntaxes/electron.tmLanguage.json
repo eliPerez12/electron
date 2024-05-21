@@ -14,7 +14,7 @@
     },
     {
       "name": "keyword.electron",
-      "match": "\\b(NOOP|NOP|IMM|LOAD|STORE|POP|PUSH|OUT|IN)\\b"
+      "match": "\\b(NOOP|NOP|IMM|LOAD|STORE|POP|PUSH|OUT|IN|HALT|MOV)\\b"
     },
     {
       "name": "variable.electron",

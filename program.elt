@@ -1,3 +1,7 @@
-SADD R1 R2 ; A = A + B
-UADD R1 R2 ; A = ACCU + B
-ADD R1 R2  ; A + B
+IMM 0 10
+IMM r3 20
+SADD r0 R3
+
+XADD R4
+OUT %10 R2
+OUT %255 R0 ; Signals program is done
