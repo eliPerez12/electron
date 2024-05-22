@@ -1,2 +1,5 @@
+IMM R1 5
+IMM R2 3
+NOOP
 ADD R1 R2
-SADDC 3 0 ; Save add with carry
+UADDC R1 R2

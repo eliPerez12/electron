@@ -1,7 +1,8 @@
 pub struct ProgramLoader;
 
+#[derive(Debug)]
 pub struct Program {
-    pub instructions: Vec<Instruction>
+    pub instructions: Vec<Instruction>,
 }
 
 impl ProgramLoader {
@@ -26,6 +27,7 @@ impl ProgramLoader {
         for warning in warnings {
             println!("Warning on line {}: {}.", warning.line, warning.message);
         }
+        // Successfull Validation
         if errors.is_empty() {
             for (line_num, instruction) in instructions.iter().enumerate() {
                 println!(
@@ -33,10 +35,13 @@ impl ProgramLoader {
                     instruction.operation, instruction.operation_args, instruction.a, instruction.b
                 );
             }
-            println!("Successfully validated program.");
-            Program {
-                instructions
+            // Add empty lines if lines < 32
+            for _ in 0..32 - instructions.len().min(32) {
+                instructions.push(Instruction::none())
             }
+            println!("Successfully validated program.");
+            Program { instructions }
+        // Failed to validate
         } else {
             for error in errors {
                 println!("Error on line {}: {}.", error.line, error.message);
@@ -47,11 +52,11 @@ impl ProgramLoader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Operation {
     NOOP,
-    IMM,  
+    IMM,
     ADD,
     ADDC,
     OUT,
@@ -78,12 +83,12 @@ impl Operation {
         }
     }
 
-    fn is_alu_operation(&self) -> bool {
+    pub fn is_alu_operation(&self) -> bool {
         matches!(self, Operation::ADD | Operation::ADDC)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OperationArgs {
     None, // No prefix
     S,    // S
@@ -91,7 +96,7 @@ pub enum OperationArgs {
     X,    // X
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instruction {
     pub operation: Operation,
     pub operation_args: OperationArgs,
@@ -99,7 +104,18 @@ pub struct Instruction {
     pub b: Oprand,
 }
 
-#[derive(Debug)]
+impl Instruction {
+    pub fn none() -> Self {
+        Self {
+            operation: Operation::NOOP,
+            operation_args: OperationArgs::None,
+            a: Oprand::Immediate(0),
+            b: Oprand::Immediate(0),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Oprand {
     Register(u8),
     MemoryAddress(u8),
@@ -114,6 +130,15 @@ impl Oprand {
             Oprand::MemoryAddress(_) => "MemoryAddress".to_string(),
             Oprand::Immediate(_) => "Immediate".to_string(),
             Oprand::Port(_) => "Port".to_string(),
+        }
+    }
+
+    pub fn data(&self) -> u8 {
+        *match self {
+            Oprand::Register(data) => data,
+            Oprand::MemoryAddress(data) => data,
+            Oprand::Immediate(data) => data,
+            Oprand::Port(data) => data,
         }
     }
 }
