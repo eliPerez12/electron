@@ -7,7 +7,17 @@ pub struct Program {
 
 impl ProgramLoader {
     pub fn load_program(file_name: &str) -> Program {
-        let mut file = std::fs::File::open(file_name).unwrap();
+        if file_name.is_empty() {
+            println!("Error: No file name given. This argument is required: \"-f your_file_name\".");
+            std::process::exit(1);
+        }
+        let mut file = match std::fs::File::open(file_name) {
+            Ok(file) => file,
+            Err(_) => {
+                println!("Error: Could not find file specified. {file_name}");
+                std::process::exit(1);
+            },
+        };
         let mut buffer = String::new();
         std::io::Read::read_to_string(&mut file, &mut buffer).unwrap();
         let mut errors: Vec<CompileMessage> = vec![];
@@ -57,9 +67,25 @@ impl ProgramLoader {
 pub enum Operation {
     NOOP,
     IMM,
+    MOV,
     ADD,
     ADDC,
     OUT,
+    JMP,
+}
+
+impl Operation {
+    pub fn get_name(&self) -> String {
+        match self {
+            Operation::NOOP => "|         ".to_string(),
+            Operation::IMM => "| IMM     ".to_string(),
+            Operation::MOV => "| MOV     ".to_string(),
+            Operation::ADD => "| ADD     ".to_string(),
+            Operation::ADDC => "| ADDC    ".to_string(),
+            Operation::OUT => "| OUT     ".to_string(),
+            Operation::JMP => "| JMP     ".to_string(),
+        }
+    }
 }
 
 struct CompileMessage {
@@ -72,14 +98,16 @@ impl Operation {
     pub fn needed_oprands(&self, args: &OperationArgs) -> (Option<Oprand>, Option<Oprand>) {
         match self {
             Operation::NOOP => (None, None),
+            Operation::IMM => (Some(Oprand::Register(0)), Some(Oprand::Immediate(0))),
+            Operation::MOV => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),
             Operation::ADD | Operation::ADDC => match args {
                 OperationArgs::None => (Some(Oprand::Register(0)), Some(Oprand::Register(0))), // No prefix
                 OperationArgs::S => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),    // S
                 OperationArgs::U => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),    // U
                 OperationArgs::X => (None, Some(Oprand::Register(0))),                         // X
             },
-            Operation::IMM => (Some(Oprand::Register(0)), Some(Oprand::Immediate(0))),
             Operation::OUT => (Some(Oprand::Port(0)), Some(Oprand::Register(0))),
+            Operation::JMP => (Some(Oprand::Immediate(0)), None),
         }
     }
 
@@ -174,10 +202,12 @@ fn operation_args_from_str(string: String) -> Result<OperationArgs, ()> {
 fn match_operation_name(str: &str) -> Result<Operation, ()> {
     match str {
         "IMM" => Ok(Operation::IMM),
+        "MOV" => Ok(Operation::MOV),
         "ADD" => Ok(Operation::ADD),
         "ADDC" => Ok(Operation::ADDC),
         "NOOP" | "NOP" => Ok(Operation::NOOP),
         "OUT" => Ok(Operation::OUT),
+        "JMP" => Ok(Operation::JMP),
         _ => Err(()),
     }
 }

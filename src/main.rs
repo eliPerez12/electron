@@ -1,151 +1,186 @@
+use emulator::*;
 use parser::*;
+use raylib::prelude::*;
 
+mod emulator;
 mod parser;
 
-#[derive(Debug)]
-struct Alu {
-    accumalator: u8,
-}
+const WINDOW_SIZE: (i32, i32) = (720, 720);
 
-#[derive(Debug)]
-struct Registers {
-    regs: [u8; 8],
-}
-
-impl Registers {
-    fn write(&mut self, address: u8, data: u8) {
-        let reg = self.regs.get_mut(address as usize);
-        if let Some(reg) = reg {
-            *reg = data
-        }
+fn format_data(mut data: String, len: usize) -> String {
+    for _ in 0..len - data.len() {
+        data.push(' ')
     }
+    data
+}
 
-    fn read(&self, address: u8) -> u8 {
-        if address == 0 {
-            0
+fn print_port(emulator: &Emulator, port: u8) {
+    let mut port_data = format!("{:b}", emulator.ports.out[port as usize]);
+    for _ in 0..8 - port_data.len() {
+        port_data.insert(0, '0');
+    }
+    print!(
+        "     Port {}: ({})  ",
+        port,
+        format_data(emulator.ports.out[port as usize].to_string(), 3),
+    );
+    for char in port_data.chars() {
+        if char == '0' {
+            print!("░░")
         } else {
-            *self.regs.get(address as usize).unwrap_or(&0)
+            print!("▓▓");
         }
     }
-
+    println!();
 }
 
-impl Alu {
-    fn execute(&mut self, registers: &Registers, instruction: &Instruction) {
-        let (a_data, b_data) = (
-            match instruction.operation_args {
-                OperationArgs::None => registers.read(instruction.a.data()),
-                OperationArgs::S => registers.read(instruction.a.data()),
-                OperationArgs::U => self.accumalator,
-                OperationArgs::X => self.accumalator,
-            },
-            registers.read(instruction.b.data())
+fn draw_terminal_screen(emulator: &Emulator) {
+    print!("▓▓▓▒▒▒░░░       Pipelines         ░░░▒▒▒▓▓▓    ");
+    println!("▓▓▓▒▒▒░░░          Ports        ░░░▒▒▒▓▓▓");
+    println!("___________________________________________");
+    print!("| FETCH   | DECODE  | EXECUTE | WRITEBACK |");
+    print_port(emulator, 0);
+    print!(
+        "{}{}{}{}  |",
+        &emulator.fetch_register.operation.get_name(),
+        emulator.decode_register.operation.get_name(),
+        emulator.execute_register.operation.get_name(),
+        emulator.write_back_register.operation.get_name()
+    );
+    print_port(emulator, 1);
+    print!("▓▓▓▒▒▒░░░           ALU          ░░░▒▒▒▓▓▓ ");
+    print_port(emulator, 2);
+    print!("___________________________________________");
+    print_port(emulator, 3);
+    print!("| Accumalator |           Flags           |");
+    print_port(emulator, 4);
+    print!(
+        "|      {}    ",
+        format_data(emulator.alu.accumalator.to_string(), 3)
+    );
+    print!(
+        "| Equals: {}             |",
+        format_data(emulator.alu.flags.equals.to_string(), 5)
+    );
+    print_port(emulator, 5);
+    print!(
+        "|             | Greater: {}            |",
+        format_data(emulator.alu.flags.greater_than.to_string(), 5)
+    );
+    print_port(emulator, 6);
+    print!(
+        "|             | Less: {}               |",
+        format_data(emulator.alu.flags.less_than.to_string(), 5)
+    );
+    print_port(emulator, 7);
+    println!(
+        "|             | Overflow: {}           |",
+        format_data(emulator.alu.flags.less_than.to_string(), 5)
+    );
+    println!();
+    println!("__________________________________________");
+    println!();
+    println!("▓▓▓▒▒▒░░░         Memory         ░░░▒▒▒▓▓▓");
+    println!("__________________________________________");
+    println!("| Registers |");
+    for i in 0..8 { 
+        println!(
+            "|   {}: {}  |",
+            i,
+            format_data(emulator.registers.read(i).to_string(), 3)
         );
-        self.accumalator = match instruction.operation {
-            Operation::ADD => a_data.wrapping_add(b_data),
-            Operation::ADDC => a_data.wrapping_add(b_data).wrapping_add(1),
-            _ => 0,
-        }
     }
 }
 
-#[derive(Debug)]
-struct Emulator {
-    program: Program,
-    program_counter: u8,
-    fetch_register: Instruction,
-    decode_register: Instruction,
-    execute_register: Instruction,
-    write_back_register: Instruction,
-    alu: Alu,
-    registers: Registers,
+fn clear_terminal_screen() {
+    print!("\x1B[2J\x1B[1;1H");
 }
 
-impl Emulator {
-    const ROM_ADDRESS_BITS: u8 = 5;
-    pub fn new(program: Program) -> Self {
-        Self {
-            program,
-            program_counter: 0,
-            fetch_register: Instruction::none(),
-            decode_register: Instruction::none(),
-            execute_register: Instruction::none(),
-            write_back_register: Instruction::none(),
-            alu: Alu { accumalator: 0 },
-            registers: Registers { regs: [0;8] },
+fn draw_ports(emulator: &Emulator, d: &mut RaylibDrawHandle, on_texture: &Texture2D, off_texture: &Texture2D) {
+    for (port, _) in emulator.ports.out.iter().enumerate() {
+        let mut port_data = format!("{:b}", emulator.ports.out[port]);
+        for _ in 0..8 - port_data.len() {
+            port_data.insert(0, '0');
         }
-    }
-
-    fn increment_program_counter(&mut self) {
-        self.program_counter += 1;
-        if self.program_counter >= 2u8.pow(Self::ROM_ADDRESS_BITS as u32) {
-            self.program_counter = 0
+        for (i, char) in port_data.char_indices() {
+            if char == '1' {
+                d.draw_texture_pro(
+                    on_texture,
+                    Rectangle::new(0.0, 0.0, on_texture.width as f32, on_texture.height as f32),
+                    Rectangle::new(
+                    (i as i32 * WINDOW_SIZE.0 / 8) as f32,
+                    (port as i32 * WINDOW_SIZE.1 / 8) as f32,
+                    (WINDOW_SIZE.0 / 8) as f32,
+                    (WINDOW_SIZE.1 / 8) as f32,
+                    ),
+                    Vector2::zero(),
+                    0.0,
+                    Color::WHITE,
+                )
+            } else {
+                d.draw_texture_pro(
+                    off_texture,
+                    Rectangle::new(0.0, 0.0, off_texture.width as f32, off_texture.height as f32),
+                    Rectangle::new(
+                    (i as i32 * WINDOW_SIZE.0 / 8) as f32,
+                    (port as i32 * WINDOW_SIZE.1 / 8) as f32,
+                    (WINDOW_SIZE.0 / 8) as f32,
+                    (WINDOW_SIZE.1 / 8) as f32,
+                    ),
+                    Vector2::zero(),
+                    0.0,
+                    Color::WHITE,
+                )
+            }
         }
-    }
-
-    fn fetch(&mut self) {
-        self.fetch_register = self.program.instructions[self.program_counter as usize].clone();
-    }
-
-    fn decode(&mut self) {
-        self.decode_register = self.fetch_register.clone();
-    }
-
-    fn execute(&mut self) {
-        self.execute_register = self.decode_register.clone();
-        self.alu.execute(&self.registers, &self.execute_register);
-    }
-
-    fn write_back(&mut self) {
-        self.write_back_register = self.execute_register.clone();
-        let (a, b) = (
-            self.write_back_register.a.data(),
-            self.write_back_register.b.data(),
-        );
-        match self.write_back_register.operation {
-            Operation::NOOP => (),
-            Operation::IMM => self.registers.write(a, b),
-            Operation::ADD => match self.write_back_register.operation_args {
-                OperationArgs::None => (),
-                OperationArgs::S => self.registers.write(a, self.alu.accumalator),
-                OperationArgs::U => self.registers.write(a, self.alu.accumalator),
-                OperationArgs::X => (),
-            },
-            Operation::ADDC => match self.write_back_register.operation_args {
-                OperationArgs::None => (),
-                OperationArgs::S => self.registers.write(a, self.alu.accumalator),
-                OperationArgs::U => self.registers.write(a, self.alu.accumalator),
-                OperationArgs::X => (),
-            },
-            Operation::OUT => todo!(),
-        }
-    }
-
-    pub fn clock(&mut self) {
-        self.write_back();
-        self.execute();
-        self.decode();
-        self.fetch();
-        self.increment_program_counter();
     }
 }
 
 fn main() {
-    let program = ProgramLoader::load_program("program.elt");
+    let args = std::env::args().collect::<Vec<String>>();
+    let mut file_name = String::new();
+    let mut terminal_output = true;
+    let mut clock_speed = 1.0;
+    let mut show_fps = false;
+    for (i, str) in args.iter().enumerate() {
+        if str == "-f" {
+            file_name = args.get(i + 1).unwrap_or(&String::new()).clone()
+        }
+        if str == "-c" {
+            clock_speed = args.get(i + 1).unwrap().parse::<f32>().unwrap();
+        }
+        if str == "-nt" {
+            terminal_output = false;
+        }
+        if str == "-fps" {
+            show_fps = true;
+        }
+    }
+    let program = ProgramLoader::load_program(&file_name);
+    let (mut rl, thread) = raylib::init()
+        .width(WINDOW_SIZE.0)
+        .title("Electron Emulator")
+        .height(WINDOW_SIZE.1)
+        .build();
     let mut emulator = Emulator::new(program);
-    for _ in 0..100 {
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-        emulator.clock();
-        println!(
-            "PC: {:?} | FR: {:?} | DR: {:?} | ER {:?} | WR {:?} | ACCU: {} |  REG1: {} | REG2: {}",
-            emulator.program_counter,
-            &emulator.fetch_register.operation,
-            &emulator.decode_register.operation,
-            &emulator.execute_register.operation,
-            &emulator.write_back_register.operation,
-            &emulator.alu.accumalator,
-            &emulator.registers.read(1),
-            &emulator.registers.read(2),
-        );
+    let mut last_clock = std::time::Instant::now();
+    let tick_speed = (1.0/clock_speed * 1000.0) as u128;
+    let on_texture = rl.load_texture_from_image(&thread, &Image::load_image_from_mem(".png", include_bytes!("on.png")).unwrap()).unwrap();
+    let off_texture = rl.load_texture_from_image(&thread, &Image::load_image_from_mem(".png", include_bytes!("off.png")).unwrap()).unwrap();
+    while !rl.window_should_close() {
+        if (std::time::Instant::now() - last_clock).as_millis() > tick_speed {
+            emulator.clock();
+            last_clock = std::time::Instant::now();
+            clear_terminal_screen();
+            if terminal_output {
+                draw_terminal_screen(&emulator);
+            }
+        }
+        let mut d = rl.begin_drawing(&thread);
+        d.clear_background(Color::BLACK);
+        draw_ports(&emulator, &mut d, &on_texture, &off_texture);
+        if show_fps {
+            d.draw_text(&d.get_fps().to_string(), 0, 0, 25, Color::WHITE);
+        }
     }
 }
