@@ -65,13 +65,23 @@ impl ProgramLoader {
 #[derive(Debug, Clone)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Operation {
+    // Data 
     NOOP,
     IMM,
     MOV,
+
+    // Alu
     ADD,
     ADDC,
+    SHR,
+    NOT,
+
+    // IO
     OUT,
+
+    // Control
     JMP,
+    BIE,
 }
 
 impl Operation {
@@ -84,6 +94,9 @@ impl Operation {
             Operation::ADDC => "| ADDC    ".to_string(),
             Operation::OUT => "| OUT     ".to_string(),
             Operation::JMP => "| JMP     ".to_string(),
+            Operation::BIE => "| BIE     ".to_string(),
+            Operation::SHR => "| SHR     ".to_string(),
+            Operation::NOT => "| NOT     ".to_string(),
         }
     }
 }
@@ -106,8 +119,11 @@ impl Operation {
                 OperationArgs::U => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),    // U
                 OperationArgs::X => (None, Some(Oprand::Register(0))),                         // X
             },
+            Operation::SHR => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),
+            Operation::NOT => (Some(Oprand::Register(0)), Some(Oprand::Register(0))),
             Operation::OUT => (Some(Oprand::Port(0)), Some(Oprand::Register(0))),
-            Operation::JMP => (Some(Oprand::Immediate(0)), None),
+            Operation::JMP | Operation::BIE =>(Some(Oprand::Immediate(0)), None),
+            
         }
     }
 
@@ -205,10 +221,27 @@ fn match_operation_name(str: &str) -> Result<Operation, ()> {
         "MOV" => Ok(Operation::MOV),
         "ADD" => Ok(Operation::ADD),
         "ADDC" => Ok(Operation::ADDC),
+        "SHR" => Ok(Operation::SHR),
         "NOOP" | "NOP" => Ok(Operation::NOOP),
         "OUT" => Ok(Operation::OUT),
         "JMP" => Ok(Operation::JMP),
+        "BIE" => Ok(Operation::BIE),
+        "NOT" => Ok(Operation::NOT),
         _ => Err(()),
+    }
+}
+
+fn parse_oprand_binary(str: &str) -> Result<u8, String> {
+    let string = str.to_string().replace('_', "");
+    if string.get(0..1).unwrap() == "B" {
+        let binary = string.get(1..).unwrap();
+        let mut total = 0;
+        for (place, char) in binary.chars().rev().enumerate() {
+            total += char.to_string().parse::<u8>().unwrap() * 2u8.pow(place as u32);
+        }
+        Ok(total)
+    } else {
+        Ok(string.parse().unwrap())
     }
 }
 
@@ -217,14 +250,17 @@ fn parse_oprand(oprand: &str) -> Result<Oprand, String> {
     if let Ok(a) = oprand.parse() {
         Ok(Oprand::Immediate(a))
     } else if prefix.unwrap() == "R" {
-        Ok(Oprand::Register(oprand.get(1..).unwrap().parse().unwrap()))
+        Ok(Oprand::Register(parse_oprand_binary(oprand.get(1..).unwrap()).unwrap()))
     } else if prefix.unwrap() == "#" {
         Ok(Oprand::MemoryAddress(
-            oprand.get(1..).unwrap().parse().unwrap(),
+            parse_oprand_binary(oprand.get(1..).unwrap()).unwrap(),
         ))
     } else if prefix.unwrap() == "%" {
-        Ok(Oprand::Port(oprand.get(1..).unwrap().parse().unwrap()))
-    } else {
+        Ok(Oprand::Port(parse_oprand_binary(oprand.get(1..).unwrap()).unwrap()))
+    } else if let Ok(a) = parse_oprand_binary(oprand) {
+        Ok(Oprand::Immediate(a))
+    }
+    else {
         return Err(format!("\"{oprand}\" is not a valid oprand"));
     }
 }

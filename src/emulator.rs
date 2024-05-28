@@ -50,6 +50,8 @@ impl Alu {
         let mut result = match instruction.operation {
             Operation::ADD => a_data + b_data,
             Operation::ADDC => a_data + b_data + 1,
+            Operation::SHR => b_data >> 1,
+            Operation::NOT => !b_data,
             _ => 0,
         };
         self.flags = AluFlags {
@@ -59,7 +61,7 @@ impl Alu {
             over_flow: result > 255,
         };
         if result > 255 {
-            result -= 255;
+            result -= 256;
         }
         self.accumalator = result as u8;
     }
@@ -134,6 +136,11 @@ impl Emulator {
     fn check_for_branch(&mut self) {
         match self.execute_register.operation {
             Operation::JMP => self.program_counter = self.execute_register.a.data(),
+            Operation::BIE => self.program_counter = if self.alu.flags.equals {
+                self.execute_register.a.data()
+            } else {
+                self.program_counter
+            },
             _ => (),
         }
     }
@@ -163,20 +170,15 @@ impl Emulator {
             Operation::NOOP => (),
             Operation::IMM => self.registers.write(a, b),
             Operation::MOV => self.registers.write(a, self.registers.read(b)),
-            Operation::ADD => match self.write_back_register.operation_args {
+            Operation::ADD | Operation::ADDC => match self.write_back_register.operation_args {
                 OperationArgs::None => (),
                 OperationArgs::S => self.registers.write(a, self.alu.accumalator),
                 OperationArgs::U => self.registers.write(a, self.alu.accumalator),
                 OperationArgs::X => (),
             },
-            Operation::ADDC => match self.write_back_register.operation_args {
-                OperationArgs::None => (),
-                OperationArgs::S => self.registers.write(a, self.alu.accumalator),
-                OperationArgs::U => self.registers.write(a, self.alu.accumalator),
-                OperationArgs::X => (),
-            },
+            Operation::SHR | Operation::NOT => self.registers.write(a, self.alu.accumalator),
             Operation::OUT => self.ports.write_out(a, self.registers.read(b)),
-            Operation::JMP => (),
+            Operation::JMP | Operation::BIE => (),
         }
     }
 

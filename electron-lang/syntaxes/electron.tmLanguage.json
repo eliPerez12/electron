@@ -10,7 +10,7 @@
     },
     {
       "name": "keyword.electron",
-      "match": "\\b[USX]?(ADD|ADDC)\\b"
+      "match": "\\b[USX]?(ADD|ADDC|SHR|NOT)\\b"
     },
     {
       "name": "keyword.electron",
@@ -26,7 +26,7 @@
     },
     {
       "name": "constant.numeric.electron",
-      "match": "\\b\\d+\\b"
+      "match": "\\b(?:b(?:[0-1](?:_[0-1])*){0,8}|\\d{1,3}(?:_\\d{1,3})*)\\b"
     },
     {
       "name": "invalid.illegal.electron",
