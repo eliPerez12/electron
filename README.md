@@ -36,6 +36,8 @@ The custom programming language currently supports the following instructions an
 
 ### Syntax Highlighting Example:
 
+Install the extension in VS Code using the VSIX file located at `electron-lang/electron-language-0.0.1.vsix`.
+
 ![Syntax Highlighting Example](https://github.com/user-attachments/assets/a1841e33-3296-4aee-bc1d-d63cdf80b4d8)
 
 ## Emulator
