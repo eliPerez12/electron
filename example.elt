@@ -1,0 +1,4 @@
+IMM R1 1
+SADD R1 R1
+
+JMP 1
