@@ -48,6 +48,25 @@ To run the emulator, create a `.elt` file and write your program in it. Then, ex
 
 The compiler is currently in development. Stay tuned for updates!
 
+## Computer Specs
+
+The version of the computer built in minecraft using redstone components has these specifications:
+
+Electron Redstone Computer V1:
+
+ROM: 96 bytes (32 lines)
+Instruction size: 3 bytes
+RAM: 32 bytes
+ALUP: 8 ticks
+Registers: 7 bytes ( +1 zero register )
+Cores: 1
+Pipeline 	4 stage waterfall
+Bus width	8 bit
+Display: 	16x16 screen 
+I/O: 8 Bytes out, 1 byte in
+Speed (Real time): 1hz
+
+
 ## Additional Resources
 
 For more detailed information, refer to the [spreadsheet](https://docs.google.com/spreadsheets/d/1BrFaLE5tVunBa1GLoMH4RvVh4GXqqtaN3Qv29scvfyQ/edit?usp=sharing). Note that this document may not be fully up-to-date with the current progress of the repo.
