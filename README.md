@@ -44,10 +44,6 @@ Install the extension in VS Code using the VSIX file located at `electron-lang/e
 
 To run the emulator, create a `.elt` file and write your program in it. Then, execute `electron.exe` with the argument `-f your_program.elt`. You may also use one of the example programs.
 
-## Compiler
-
-The compiler is currently in development. Stay tuned for updates!
-
 ## Computer Specs
 
 The version of the computer built in minecraft using redstone components has these specifications:
