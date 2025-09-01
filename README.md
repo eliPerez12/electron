@@ -54,17 +54,18 @@ The version of the computer built in minecraft using redstone components has the
 
 Electron Redstone Computer V1:
 
-ROM: 96 bytes (32 lines)
-Instruction size: 3 bytes
-RAM: 32 bytes
-ALUP: 8 ticks
-Registers: 7 bytes ( +1 zero register )
-Cores: 1
-Pipeline 	4 stage waterfall
-Bus width	8 bit
-Display: 	16x16 screen 
-I/O: 8 Bytes out, 1 byte in
-Speed (Real time): 1hz
+ROM: 96 bytes (32 lines)   
+Instruction size: 3 bytes  
+RAM: 32 bytes  
+ALUP: 8 ticks  
+Registers: 7 bytes ( +1 zero register )  
+Cores: 1  
+Pipeline 	4 stage waterfall  
+Bus width	8 bit  
+Display: 	16x16 screen   
+I/O: 8 Bytes out, 1 byte in  
+Speed (Real time): 1hz  
+
 
 
 ## Additional Resources
